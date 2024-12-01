@@ -1,0 +1,32 @@
+@import './styles/grain.css';
+@import './styles/sentiment-icons.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  background-color: #0a192f;
+}
+
+.noise-container {
+  position: relative;
+}
+
+.noise-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 100px 100px;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Add these styles for the loading state */
+.loading {
+  @apply animate-pulse bg-gray-100;
+}
