@@ -2,9 +2,19 @@ import { pipeline, env } from '@xenova/transformers';
 
 let classifier: any = null;
 
-// Check for WebGPU support
-async function checkWebGPUSupport() {
+// Check device capabilities
+async function checkDeviceCapabilities() {
   try {
+    // Check if this is a mobile device
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    // If mobile, we'll use CPU to avoid memory issues
+    if (isMobile) {
+      console.log('Worker: Mobile device detected, using CPU');
+      return { useGPU: false, quantize: true };
+    }
+
+    // For desktop, check WebGPU support
     if ('gpu' in navigator) {
       // @ts-ignore - TypeScript doesn't know about navigator.gpu yet
       const adapter = await navigator.gpu.requestAdapter();
@@ -12,15 +22,16 @@ async function checkWebGPUSupport() {
         const device = await adapter.requestDevice();
         if (device) {
           console.log('Worker: WebGPU is supported and working');
-          return true;
+          return { useGPU: true, quantize: true };
         }
       }
     }
-    console.log('Worker: WebGPU not available, falling back to CPU');
-    return false;
+
+    console.log('Worker: Using CPU with quantization');
+    return { useGPU: false, quantize: true };
   } catch (error) {
-    console.log('Worker: Error checking WebGPU support:', error);
-    return false;
+    console.log('Worker: Error checking capabilities:', error);
+    return { useGPU: false, quantize: true };
   }
 }
 
@@ -32,18 +43,17 @@ async function initializeModel() {
     env.useBrowserCache = true;
     env.useCustomCache = false;
 
-    // Check WebGPU support
-    const hasWebGPU = await checkWebGPUSupport();
+    // Check device capabilities
+    const capabilities = await checkDeviceCapabilities();
 
     // Initialize the pipeline with logging
-    console.log('Worker: Starting pipeline initialization');
+    console.log('Worker: Starting pipeline initialization with config:', capabilities);
     classifier = await pipeline(
       'sentiment-analysis',
       'Xenova/twitter-roberta-base-sentiment-latest',
       {
-        quantized: true,
+        quantized: capabilities.quantize,
         revision: 'main',
-        backend: hasWebGPU ? 'webgpu' : 'cpu',
         progress_callback: (progress: any) => {
           console.log('Worker: Progress update:', progress);
           self.postMessage({ 
@@ -59,7 +69,7 @@ async function initializeModel() {
       }
     );
 
-    console.log('Worker: Pipeline initialized successfully using', hasWebGPU ? 'WebGPU' : 'CPU');
+    console.log('Worker: Pipeline initialized successfully');
     self.postMessage({ type: 'initialized' });
   } catch (error) {
     console.error('Worker: Initialization error:', error);
